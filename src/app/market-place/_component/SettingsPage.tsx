@@ -1,0 +1,884 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useEffect, useState, useTransition } from "react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectValue,
+  SelectItem,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Camera, Loader2, Save, StoreIcon, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { useCurrentUser } from "@/hooks/getCurrentUser";
+import Image from "next/image";
+import { toast } from "sonner";
+import { UploadButton } from "@/utils/uploadthing";
+import { UpdateStoreAction } from "@/actions/auth/store";
+import { deleteBannerAction, deleteLogoAction } from "@/actions/actions";
+import { useRouter } from "next/navigation";
+
+const BuyerSettingsPage = () => {
+  return (
+    <main className="p-4 md:ml-62 py-12 space-y-6">
+      <h1 className="text-2xl font-semibold">Account Settings</h1>
+
+      {/* Account Security */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Security</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input placeholder="Current Password" type="password" />
+          <Input placeholder="New Password" type="password" />
+          <Input placeholder="Confirm New Password" type="password" />
+        </CardContent>
+      </Card>
+
+      {/* Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Preferences</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Receive Order Updates</Label>
+            <Switch defaultChecked />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Enable Wishlist Sync</Label>
+            <Switch />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button size="lg">Save Changes</Button>
+    </main>
+  );
+};
+
+const SellerSettingsPage = () => {
+  const user = useCurrentUser();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const [store, setStore] = useState<any>();
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoKey, setLogoKey] = useState<string | null>(null);
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+  const [bannerKey, setBannerKey] = useState<string | null>(null);
+
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // FETCH SELLER STORE
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchStore = async () => {
+      try {
+        const res = await fetch(`/api/user/${user.id}/store`);
+        const data = await res.json();
+        setStore(data);
+        setLogoUrl(data?.logo ?? null);
+        setLogoKey(data?.logoKey ?? null);
+        setBannerUrl(data?.bannerImage ?? null);
+        setBannerKey(data?.bannerKey ?? null);
+      } catch {
+        setStore(null);
+      }
+    };
+
+    fetchStore();
+  }, [user]);
+
+  // SAVE CHANGES
+  const refreshStore = async () => {
+    if (!user?.id) return;
+    const res = await fetch(`/api/user/${user.id}/store`);
+    const data = await res.json();
+    setStore(data);
+    setLogoUrl(data?.logo ?? null);
+    setLogoKey(data?.logoKey ?? null);
+  };
+
+  // LOADING UI
+  if (store === undefined) {
+    return (
+      <main className="max-w-3xl mx-auto animate-fadeIn">
+        <h1 className="text-3xl font-semibold mb-8">Store Settings</h1>
+
+        <div className="space-y-10">
+          {/* -- Business Profile Skeleton -- */}
+          <section className="bg-white rounded-2xl shadow p-6 space-y-6">
+            <div className="h-6 w-40 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+
+            <div className="space-y-4">
+              <div className="h-10 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-10 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-10 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-20 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+            </div>
+
+            {/* Logo Skeleton */}
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-neutral-800 animate-pulse" />
+              <div className="h-8 w-32 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+            </div>
+          </section>
+
+          {/* -- Preferences Skeleton -- */}
+          <section className="bg-white rounded-2xl shadow p-6 space-y-6">
+            <div className="h-6 w-40 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+
+            <div className="flex items-center justify-between">
+              <div className="h-5 w-40 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-7 w-14 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="h-5 w-40 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+              <div className="h-7 w-14 bg-gray-200 dark:bg-neutral-800 rounded animate-pulse" />
+            </div>
+          </section>
+
+          {/* Save button skeleton */}
+          <div className="h-12 w-full rounded-xl bg-gray-200 dark:bg-neutral-800 animate-pulse" />
+
+          {/* Loading Indicator */}
+          <div className="flex justify-center pt-6 text-gray-500">
+            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            <span>Loading store settings...</span>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // DELETE LOGO
+  const handleDeleteLogo = async () => {
+    if (!logoKey) return;
+
+    setDeleting(true);
+    try {
+      await deleteLogoAction(logoKey);
+      setLogoUrl(null);
+      setLogoKey(null);
+      toast.success("Logo removed");
+    } catch {
+      toast.error("Unable to delete logo");
+    }
+    setDeleting(false);
+  };
+
+  // SELLER WITHOUT A STORE
+  const handleCreateStore = () => {
+    startTransition(() => {
+      router.push("/market-place/dashboard/seller/store/create-store");
+    });
+  };
+  if (store === null) {
+    return (
+      <main className="space-y-8 max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold">Create Your Store</h1>
+        <p className="text-gray-500">
+          You don't have a store yet. Set up your store to start selling on
+          NexaMart.
+        </p>
+        <Button
+          onClick={handleCreateStore}
+          disabled={isPending}
+          className="disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {isPending ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Please wait...</span>
+            </div>
+          ) : (
+            "Create Store"
+          )}
+        </Button>
+      </main>
+    );
+  }
+
+  const handleSave = () => {
+    startTransition(async () => {
+      try {
+        const res = await UpdateStoreAction({
+          id: store.id,
+          name: store.name,
+          description: store.description,
+          location: store.location,
+          address: store.address,
+          tagline: store.tagline,
+          logo: logoUrl,
+          logoKey: logoKey,
+          bannerImage: bannerUrl,
+          bannerKey: bannerKey,
+          isActive: store.isActive,
+          emailNotificationsEnabled: store.emailNotificationsEnabled,
+        });
+
+        if (res?.error) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success("Store updated successfully!");
+        await refreshStore();
+      } catch {
+        toast.error("Something went wrong.");
+      }
+    });
+  };
+
+  const handleDeleteBanner = async () => {
+    if (!bannerKey) return;
+
+    setDeleting(true);
+    try {
+      await deleteBannerAction(bannerKey);
+      setBannerUrl(null);
+      setBannerKey(null);
+      setStore({ ...store, bannerImage: null, bannerKey: null });
+      toast.success("Banner removed");
+    } catch {
+      toast.error("Failed to delete banner");
+    }
+    setDeleting(false);
+  };
+
+  return (
+    <main className="space-y-8 max-w-3xl mx-auto">
+      <h1 className="text-3xl font-semibold">Store Settings</h1>
+
+      {/* BUSINESS PROFILE */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Business Profile</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <div>
+            <Label>Store Name</Label>
+            <Input
+              value={store.name}
+              onChange={(e) => setStore({ ...store, name: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <Label>Email</Label>
+            <Input value={user?.email ?? ""} disabled />
+          </div>
+
+          <div>
+            <Label>Location (City/State)</Label>
+            <Input
+              value={store.location || ""}
+              onChange={(e) => setStore({ ...store, location: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <Label>Store Address (Optional)</Label>
+            <Input
+              value={store.address || ""}
+              onChange={(e) => setStore({ ...store, address: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <Label>Description</Label>
+            <Textarea
+              value={store.description || ""}
+              onChange={(e) =>
+                setStore({ ...store, description: e.target.value })
+              }
+            />
+          </div>
+
+          {/* LOGO */}
+          <div className="space-y-2">
+            <Label>Store Logo</Label>
+
+            <div className="relative w-32 h-32 group">
+              <div className="w-32 h-32 rounded-full overflow-hidden border shadow-sm flex items-center justify-center bg-gray-100">
+                {logoUrl ? (
+                  <Image
+                    src={logoUrl}
+                    alt="logo"
+                    width={128}
+                    height={128}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <Camera className="w-10 h-10 text-gray-400" />
+                )}
+              </div>
+
+              {/* Overlay */}
+              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center cursor-pointer gap-1 text-white text-sm">
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteLogo}
+                    className="text-red-300"
+                  >
+                    {deleting ? "Deleting..." : "Remove"}
+                  </button>
+                )}
+
+                <UploadButton
+                  endpoint="storeLogo"
+                  onUploadBegin={() => setUploading(true)}
+                  onClientUploadComplete={(res) => {
+                    setUploading(false);
+                    const file = res[0];
+                    setLogoUrl(file.url);
+                    setLogoKey(file.key);
+                    toast.success("Logo updated!");
+                  }}
+                  appearance={{
+                    button: "bg-transparent text-white",
+                    container: "flex items-center justify-center w-full h-full",
+                  }}
+                  content={{
+                    button() {
+                      return uploading
+                        ? "Uploading..."
+                        : logoUrl
+                        ? "Edit"
+                        : "Add Photo";
+                    },
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* STOREFRONT APPEARANCE */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Storefront Appearance</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Banner Image Upload */}
+          {/* Banner Upload */}
+          <div className="space-y-2">
+            <Label>Banner Image</Label>
+
+            <div className="relative w-full h-48 bg-gray-100 border rounded-xl overflow-hidden group">
+              {bannerUrl ? (
+                <Image
+                  src={bannerUrl}
+                  alt="Banner"
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  No Banner – Add one
+                </div>
+              )}
+
+              {/* 🔥 Uploading overlay (ALWAYS visible during upload) */}
+              {uploading && (
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl text-white gap-2 z-20">
+                  <Loader2 className="animate-spin w-6 h-6" />
+                  <span className="text-xs">Uploading...</span>
+                </div>
+              )}
+
+              {/* Hover panel */}
+              {!uploading && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded-xl transition flex flex-col items-center justify-center gap-3 text-white text-sm cursor-pointer z-10">
+                  {bannerUrl && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteBanner}
+                      className="hover:text-red-300"
+                    >
+                      {deleting ? "Deleting..." : "Remove"}
+                    </button>
+                  )}
+
+                  <UploadButton
+                    endpoint="storeBanner"
+                    onUploadBegin={() => setUploading(true)}
+                    onClientUploadComplete={(res) => {
+                      setUploading(false);
+                      const file = res[0];
+                      setBannerUrl(file.url);
+                      setBannerKey(file.key);
+                      toast.success("Banner updated!");
+                    }}
+                    appearance={{
+                      button:
+                        "text-xs font-medium text-white hover:text-gray-100",
+                      container: "flex flex-col items-center",
+                    }}
+                    content={{
+                      button: () =>
+                        bannerUrl ? "Change Banner" : "Add Banner",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Storefront Tagline */}
+          <div>
+            <Label>Storefront Tagline / Slogan (optional)</Label>
+            <Input
+              placeholder="Example: Quality you can trust."
+              value={store.tagline || ""}
+              onChange={(e) =>
+                setStore({
+                  ...store,
+                  tagline: e.target.value,
+                })
+              }
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Appears under your store name on the public storefront.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* PREFERENCES SECTION */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Store Preferences</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <Label>Enable Storefront</Label>
+            <Switch
+              checked={store.isActive}
+              onCheckedChange={(checked) =>
+                setStore({ ...store, isActive: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label>Email Notifications</Label>
+            <Switch
+              checked={store.emailNotificationsEnabled}
+              onCheckedChange={(checked) =>
+                setStore({ ...store, emailNotificationsEnabled: checked })
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button
+        size="lg"
+        className="w-full text-lg py-3"
+        onClick={handleSave}
+        disabled={isPending}
+      >
+        {isPending ? "Saving..." : "Save Changes"}
+      </Button>
+    </main>
+  );
+};
+
+const RiderSettingsPage = () => {
+  return (
+    <main className="p-4 md:ml-62 py-12 space-y-6">
+      <h1 className="text-2xl font-semibold">Settings</h1>
+
+      {/* Vehicle / Schedule */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vehicle Information & Schedule</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input placeholder="Vehicle Type (e.g. Bike, Car)" />
+          <Input placeholder="License Plate" />
+          <Input placeholder="Available Hours" />
+        </CardContent>
+      </Card>
+
+      {/* Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Preferences</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Receive Delivery Notifications</Label>
+            <Switch defaultChecked />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Auto-Accept Nearby Orders</Label>
+            <Switch />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button size="lg">Save Changes</Button>
+    </main>
+  );
+};
+
+const AdminSettingsPage = () => {
+  // General site settings
+  const [siteName, setSiteName] = useState("Nexamart");
+  const [siteEmail, setSiteEmail] = useState("support@nexamart.com");
+  const [sitePhone, setSitePhone] = useState("+234 800 000 0000");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  // Platform control toggles
+  const [allowNewSellers, setAllowNewSellers] = useState(true);
+  const [allowNewBuyers, setAllowNewBuyers] = useState(true);
+
+  // Currency & branding
+  const [defaultCurrency, setDefaultCurrency] = useState("USD");
+  const [themeColor, setThemeColor] = useState("blue");
+  const [logo, setLogo] = useState<File | null>(null);
+
+  // Social media
+  const [facebook, setFacebook] = useState("https://facebook.com/nexamart");
+  const [instagram, setInstagram] = useState("https://instagram.com/nexamart");
+  const [twitter, setTwitter] = useState("https://x.com/nexamart");
+  const [whatsapp, setWhatsapp] = useState("https://wa.me/2348000000000");
+
+  // Integrations
+  const [paystackKey, setPaystackKey] = useState("pk_test_xxxxx");
+  const [stripeKey, setStripeKey] = useState("sk_test_xxxxx");
+  const [smtpEmail, setSmtpEmail] = useState("admin@nexamart.com");
+  const [smtpPassword, setSmtpPassword] = useState("********");
+
+  // Notification controls
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(false);
+  const [adminAlerts, setAdminAlerts] = useState(true);
+
+  // Support settings
+  const [supportMessage, setSupportMessage] = useState(
+    "Hello! How can we help you today?"
+  );
+  const [supportEmail, setSupportEmail] = useState("help@nexamart.com");
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setLogo(e.target.files[0]);
+    }
+  };
+
+  const handleSave = () => {
+    console.log({
+      siteName,
+      siteEmail,
+      sitePhone,
+      maintenanceMode,
+      allowNewSellers,
+      allowNewBuyers,
+      defaultCurrency,
+      themeColor,
+      logo: logo?.name || "No file uploaded",
+      facebook,
+      instagram,
+      twitter,
+      whatsapp,
+      paystackKey,
+      stripeKey,
+      smtpEmail,
+      smtpPassword,
+      emailNotifications,
+      smsNotifications,
+      adminAlerts,
+      supportMessage,
+      supportEmail,
+    });
+  };
+
+  return (
+    <main className="p-4 md:ml-62 py-12 space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Site Settings</h1>
+        <Button size="lg" onClick={handleSave}>
+          <Save className="w-4 h-4 mr-2" />
+          Save All Changes
+        </Button>
+      </div>
+
+      {/* General Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>General Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Site Name</Label>
+            <Input
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Support Email</Label>
+            <Input
+              type="email"
+              value={siteEmail}
+              onChange={(e) => setSiteEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Support Phone</Label>
+            <Input
+              value={sitePhone}
+              onChange={(e) => setSitePhone(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Business Address</Label>
+            <Input placeholder="Business Address" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Business Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Business Policies</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea placeholder="Terms of Service" />
+          <Textarea placeholder="Privacy Policy" />
+          <Textarea placeholder="Refund Policy" />
+        </CardContent>
+      </Card>
+
+      {/* Branding Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Branding & Appearance</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Upload Logo</Label>
+            <div className="flex items-center gap-4 mt-2">
+              <Input type="file" accept="image/*" onChange={handleLogoUpload} />
+              {logo && (
+                <span className="text-sm text-muted-foreground">
+                  {logo.name}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <Label>Theme Color</Label>
+            <Select value={themeColor} onValueChange={setThemeColor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select theme color" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="blue">Blue</SelectItem>
+                <SelectItem value="green">Green</SelectItem>
+                <SelectItem value="purple">Purple</SelectItem>
+                <SelectItem value="red">Red</SelectItem>
+                <SelectItem value="orange">Orange</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Platform Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform Controls</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Maintenance Mode</Label>
+            <Switch
+              checked={maintenanceMode}
+              onCheckedChange={setMaintenanceMode}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Allow New Seller Signups</Label>
+            <Switch
+              checked={allowNewSellers}
+              onCheckedChange={setAllowNewSellers}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Allow New Buyer Registrations</Label>
+            <Switch
+              checked={allowNewBuyers}
+              onCheckedChange={setAllowNewBuyers}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Currency & Localization */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Currency & Localization</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Default Currency</Label>
+            <Select value={defaultCurrency} onValueChange={setDefaultCurrency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USD">USD ($)</SelectItem>
+                <SelectItem value="EUR">EUR (€)</SelectItem>
+                <SelectItem value="GBP">GBP (£)</SelectItem>
+                <SelectItem value="NGN">NGN (₦)</SelectItem>
+                <SelectItem value="CAD">CAD ($)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Social Media */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Social Media & External Links</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Facebook URL"
+            value={facebook}
+            onChange={(e) => setFacebook(e.target.value)}
+          />
+          <Input
+            placeholder="Instagram URL"
+            value={instagram}
+            onChange={(e) => setInstagram(e.target.value)}
+          />
+          <Input
+            placeholder="Twitter / X URL"
+            value={twitter}
+            onChange={(e) => setTwitter(e.target.value)}
+          />
+          <Input
+            placeholder="WhatsApp Link"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Integrations */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Integrations & API Keys</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Paystack Public Key"
+            value={paystackKey}
+            onChange={(e) => setPaystackKey(e.target.value)}
+          />
+          <Input
+            placeholder="Stripe Secret Key"
+            value={stripeKey}
+            onChange={(e) => setStripeKey(e.target.value)}
+          />
+          <Input
+            placeholder="SMTP Email"
+            value={smtpEmail}
+            onChange={(e) => setSmtpEmail(e.target.value)}
+          />
+          <Input
+            placeholder="SMTP Password"
+            type="password"
+            value={smtpPassword}
+            onChange={(e) => setSmtpPassword(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Notifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notification Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Email Notifications</Label>
+            <Switch
+              checked={emailNotifications}
+              onCheckedChange={setEmailNotifications}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>SMS Notifications</Label>
+            <Switch
+              checked={smsNotifications}
+              onCheckedChange={setSmsNotifications}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label>Admin Alerts</Label>
+            <Switch checked={adminAlerts} onCheckedChange={setAdminAlerts} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Support Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Support & Contact</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Support Email"
+            value={supportEmail}
+            onChange={(e) => setSupportEmail(e.target.value)}
+          />
+          <Input
+            placeholder="Support Message"
+            value={supportMessage}
+            onChange={(e) => setSupportMessage(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <div className="flex justify-end">
+        <Button size="lg" onClick={handleSave}>
+          <Save className="w-4 h-4 mr-2" />
+          Save All Settings
+        </Button>
+      </div>
+    </main>
+  );
+};
+
+export default AdminSettingsPage;
+
+export {
+  AdminSettingsPage,
+  BuyerSettingsPage,
+  RiderSettingsPage,
+  SellerSettingsPage,
+};
