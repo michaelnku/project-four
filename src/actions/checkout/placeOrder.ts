@@ -79,7 +79,6 @@ export const placeOrderAction = async ({
     const order = await tx.order.create({
       data: {
         userId,
-        sellerId: cart.items[0].product.store.userId,
         deliveryAddress,
         paymentMethod,
         deliveryType,

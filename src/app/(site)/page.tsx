@@ -1,5 +1,4 @@
 import HomeSkeleton from "@/components/skeletons/HomeSkeleton";
-import { Suspense } from "react";
 import dynamic from "next/dynamic";
 
 const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));

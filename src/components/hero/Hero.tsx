@@ -1,5 +1,4 @@
 import Link from "next/link";
-import StackedProductCardsWrapper from "./StackedProductCardsWrapper";
 
 export default function Hero() {
   return (
@@ -32,10 +31,6 @@ export default function Hero() {
               Learn More
             </Link>
           </div>
-        </div>
-        {/* Right Side: Animated Cards */}
-        <div className="flex-1 flex justify-center md:justify-end">
-          <StackedProductCardsWrapper />
         </div>
       </section>
     </main>

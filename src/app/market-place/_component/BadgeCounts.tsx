@@ -12,7 +12,6 @@ import { motion } from "framer-motion";
 import { useCartStore } from "@/stores/CartStore";
 import { useWishlistStore } from "@/stores/WishlistStore";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/getCurrentUser";
 
 const AnimatedBadge = ({ count }: { count: number }) => {
